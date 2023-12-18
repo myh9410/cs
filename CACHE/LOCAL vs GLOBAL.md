@@ -1,0 +1,7 @@
+- 로컬 캐시 (ex. EhCache, Guava Cache 등)
+    - 서버별 캐시 관리 (scale-out 시 캐시 정합성에 문제)
+    - 캐싱 데이터가 변경되는 경우, all-to-all replica (모든 서버에 변경 적용)
+- 글로벌 캐시 (ex. Redis, Memcached 등)
+    - 공유 캐시 서버에서 캐시 관리 (scale-out에 유리)
+    - Replication, Sharding 등이 가능
+    - 캐싱 데이터가 변경되는 경우, 캐싱 서버 하나만 변경
