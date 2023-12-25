@@ -1,0 +1,22 @@
+- Class Loader
+    - .class 파일들을 Runtime Data Area에 배치한다.
+        - Loading - 메모리에 로드
+        - Linking - 검증, 할당 등
+        - Initialization - 클래스 변수 초기화
+- Execute Engine
+- Garbage Collector
+- Runtime Data Area
+    - METHOD AREA
+    - HEAP
+        - YOUNG - Minor GC
+            - Eden
+                - 새로 생성된 객체
+                - 주기적인 GC 후, 살아남은 객체들을 Survivor1으로 보냄
+            - Survivor0, Survivor1
+                - 최소 1번 이상의 GC 이후 살아남은 객체
+                - Survivor0과 Survivor1 중 둘 중 하나는 반드시 비어 있어야 함
+                    - Survivo0과 1중 하나에 살아남은 객체를 몰아놓고 GC 수행하기 때문
+        - Old - Major GC
+    - JVM Language Stacks
+    - PC Registers
+    - Native Method Stack

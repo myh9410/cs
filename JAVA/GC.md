@@ -1,0 +1,12 @@
+- GC
+    - HEAP 영역에서 더이상 사용하지 않는 메모리를 주기적으로 제거하는 프로세스
+    - STOP THE WORLD
+        - GC 수행을 위해 JVM이 실행을 멈추는 현상 (이를 최소화 시키는 것이 중요)
+    - MARK AND SWEEP (대상 식별 & 제거)
+- GC 알고리즘
+    - Serial
+    - Parallel
+    - Parallel Old
+    - CMS
+    - G1 (java 9+ default)
+    - ZGC
