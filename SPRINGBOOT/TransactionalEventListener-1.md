@@ -76,3 +76,7 @@ public class EventComponent {
 - TransactionPhase.AFTER_ROLLBACK
   - 상위 트랜잭션이 정상 커밋되면, 이벤트가 실행되지 않는다
   - 상위 트랜잭션이 롤백되었을 때만, 이벤트가 실행된다
+
+## Condition
+- 특정 조건에만 이벤트를 처리하도록 하기 위한 값
+- Object가 이벤트 실행 조건 파라미터로 넘어왔을 때, 해당 값을 참조 가능하다 (상위 코드에서 #testEvent 처럼)
