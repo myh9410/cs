@@ -31,9 +31,10 @@ public Long createWelcomeBoard() {
    상위 트랜잭션 - 1. IntegrateFacade 하위에 속한 트랜잭션들은 Rollback 처리
 
 2. Propagation.NESTED  
-   만약 위의 코드에서 3번의 Propagation만 NESTED로 변경된다면, 2번은 커밋되고 3번은 롤백될까? NO
+   만약 3번은 롤백하고, 2번은 커밋되도록하는 구성을 가져가고 싶다면,  
+   위의 코드에서 3번의 Propagation만 NESTED로 변경된다면, 2번은 커밋되고 3번은 롤백될까? NO
 3. Propagation.NESTED With Try-Catch  
-   아래의 경우들에는 의도대로 2번은 커밋되고, 3번은 롤백된다.
+   아래의 경우들에서는 의도대로 2번은 커밋되고, 3번은 롤백된다.
     ```java
         //상위 트랜잭션에서 try-catch로 잡거나
         @Transactional(propagation = Propagation.REQUIRES_NEW)
