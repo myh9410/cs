@@ -34,7 +34,8 @@
     }
 ```
 
-@TransactionalEventListener의 phase 별 실제 이벤트 호출 여부와 3.BoardService에서 RuntimeException이 발생 시, 롤백의 범위가 어떻게 되는지 확인
+@TransactionalEventListener의 phase 별 실제 이벤트 호출 여부와   
+3.BoardService에서 RuntimeException이 발생 시, 롤백의 범위가 어떻게 되는지 확인
 
 ### RuntimeException 없이 성공하는 케이스
 > 1. TransactionPhase.AFTER_COMMIT 인 경우
@@ -88,5 +89,63 @@
 > [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
 > [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent]
 > ```
-> 기존 트랜잭션이 롤백된 상태에서 호출된 트랜잭션은 반영되지 않는다.
+> 기존 트랜잭션이 롤백된 상태에서 호출된 트랜잭션은 반영되지 않는다.  
 > 결과 : 2,3번은 롤백, 4번은 커밋되지 않음
+
+### ApplicationEventPublisher 내에서 RuntimeException이 발생한 경우
+```java
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void createUserAndDefaultBoard(String userId) {
+        userService.createUserData();
+        boardService.createWelcomeBoard(1L);
+        applicationEventPublisher.publishEvent(TestEvent.builder().no(1L).event("test1").build());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    @TransactionalEventListener(
+            phase = TransactionPhase.BEFORE_COMMIT
+    )
+    public void publishTestEvent(TestEvent testEvent) {
+        log.info("event call");
+        callbackRepository.save(Callback.builder().no(testEvent.getNo()).count(3L).build());
+
+        throw new RuntimeException();
+    }
+```
+
+> 1. TransactionPhase.BEFORE_COMMIT 인 경우
+> ```shell
+> [nio-8080-exec-1] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.web.services.UserService.createUserData]
+> [nio-8080-exec-1] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.web.services.BoardService.createWelcomeBoard]
+> [nio-8080-exec-1] o.s.t.i.TransactionInterceptor           : Getting transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent]
+> [nio-8080-exec-1] c.s.mq.infrastructure.EventComponent     : event call
+> [nio-8080-exec-1] o.s.t.i.TransactionInterceptor           : Getting transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
+> [nio-8080-exec-1] o.s.t.i.TransactionInterceptor           : Completing transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
+> [nio-8080-exec-1] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent] after exception: java.lang.RuntimeException
+> ```
+> 기존 트랜잭션이 미반영된 상태에서, applicationEventPublisher에서 rollback하여 전체 롤백 처리
+
+> 2. TransactionPhase.BEFORE_COMMIT 인데, @Async로 TransactionalEventListener가 호출되는 경우
+> ```shell
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.web.services.UserService.createUserData]
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.web.services.BoardService.createWelcomeBoard]
+> [         task-1] o.s.t.i.TransactionInterceptor           : Getting transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent]
+> [         task-1] c.s.mq.infrastructure.EventComponent     : event call
+> [         task-1] o.s.t.i.TransactionInterceptor           : Getting transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
+> [         task-1] o.s.t.i.TransactionInterceptor           : Completing transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
+> [         task-1] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent] after exception: java.lang.RuntimeException
+>```
+> @Async로 인해, 앞선 service들에서의 thread와 event에서의 thread가 다르고, tx가 유지되지 않는다.
+> 따라서, createUserData와 createWelcomeBoard는 정상 커밋되고, event는 RuntimeException으로 인해 rollback된다. 
+
+> 3. TransactionPhase.AFTER_COMMIT 인 경우
+> ```shell
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.web.services.UserService.createUserData]
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.web.services.BoardService.createWelcomeBoard]
+> [nio-8080-exec-2] c.s.mq.infrastructure.EventComponent     : event call
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Getting transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [org.springframework.data.jpa.repository.support.SimpleJpaRepository.save]
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Completing transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent] after exception: java.lang.RuntimeException
+> [nio-8080-exec-2] o.s.t.i.TransactionInterceptor           : Getting transaction for [com.springboot.mq.infrastructure.EventComponent.publishTestEvent]
+> ```
+> 기존 트랜잭션이 이미 커밋된 상태에서 AFTER_COMMIT으로 rollback 시도 시, 기존 트랜잭션은 반영되고, rollback 처리된 부분만 미반영된다.
